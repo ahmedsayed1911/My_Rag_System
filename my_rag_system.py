@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import tempfile
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
@@ -64,8 +65,13 @@ uploaded_file = st.file_uploader("📄 Upload your PDF file", type="pdf")
 
 if uploaded_file:
     with st.spinner("Processing your PDF..."):
-        # تحميل الـ PDF
-        loader = PyPDFLoader(uploaded_file)
+        # حفظ الملف مؤقتًا لقراءته بواسطة PyPDFLoader
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_path = tmp_file.name
+
+        # تحميل وقراءة PDF
+        loader = PyPDFLoader(tmp_path)
         docs = loader.load()
 
         # تقسيم النصوص إلى chunks
