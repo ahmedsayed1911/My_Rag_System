@@ -8,31 +8,30 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 
-# --- Safe replacement for missing LangChain function ---
+# --- Custom Stuff Chain (بديل create_stuff_documents_chain و LLMChain) ---
 def create_stuff_documents_chain(llm, prompt):
     """
-    Custom simplified version of LangChain's create_stuff_documents_chain,
-    compatible with older LangChain versions.
+    Custom simplified version of create_stuff_documents_chain
+    that works even if LLMChain is unavailable.
     """
-    from langchain.chains import LLMChain
-    from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
+    class SimpleDocumentChain:
+        def __init__(self, llm, prompt):
+            self.llm = llm
+            self.prompt = prompt
 
-    class SimpleCombineDocumentsChain(BaseCombineDocumentsChain):
-        def _combine_docs(self, docs, **kwargs):
+        def combine_docs(self, docs, input=None):
             # دمج النصوص في سياق واحد
             context = "\n\n".join([doc.page_content for doc in docs])
-            # تشغيل الـ LLMChain على السياق
-            return LLMChain(llm=llm, prompt=prompt).run(context=context, **kwargs)
+            # إعداد النص النهائي المرسل للنموذج
+            prompt_text = self.prompt.format(context=context, input=input)
+            # تمرير للنموذج مباشرة
+            response = self.llm.invoke(prompt_text)
+            return response.content if hasattr(response, "content") else str(response)
 
-    return SimpleCombineDocumentsChain(llm_chain=LLMChain(llm=llm, prompt=prompt))
+    return SimpleDocumentChain(llm, prompt)
 
-
-# --- Safe replacement for create_retrieval_chain ---
+# --- Custom Retrieval Chain ---
 def create_retrieval_chain(retriever, document_chain):
-    """
-    Manual version of LangChain's create_retrieval_chain
-    for compatibility with older versions.
-    """
     class SimpleRetrievalChain:
         def __init__(self, retriever, document_chain):
             self.retriever = retriever
@@ -103,7 +102,7 @@ if uploaded_file:
         Question: {input}
         """)
 
-        # إنشاء السلاسل يدويًا
+        # إنشاء السلاسل اليدوية
         document_chain = create_stuff_documents_chain(llm, prompt)
         retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
