@@ -1,12 +1,11 @@
-# Core framework
 streamlit
 
-# LangChain core + components
-langchain
-langchain-core
-langchain-community
-langchain-text-splitters
-langchain-openai
+# LangChain (latest versions with combine_documents)
+langchain>=0.2.14
+langchain-core>=0.2.23
+langchain-community>=0.2.13
+langchain-openai>=0.2.0
+langchain-text-splitters>=0.2.2
 
 # Embeddings + vector stores
 chromadb
@@ -15,9 +14,7 @@ fastembed
 # PDF loader
 pypdf
 
-# Optional but useful
+# Optional but helpful
 requests
 tqdm
-
-# For Groq / OpenAI compatibility
 httpx
