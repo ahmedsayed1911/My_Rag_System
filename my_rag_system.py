@@ -127,10 +127,6 @@ if uploaded_file:
                 st.write(response["answer"])
 
                 # عرض المصدر إن وجد
-                sources = response.get("context", None)
-                if sources:
-                    st.write("### 📚 Sources used:")
-                    for i, doc in enumerate(sources):
-                        st.markdown(f"**Chunk {i+1}:** {doc.page_content[:300]}...")
+               
 else:
     st.info("⬆️ Please upload a PDF file to begin.")
