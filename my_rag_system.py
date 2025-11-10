@@ -5,7 +5,16 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from langchain.chains.combine_documents import create_stuff_documents_chain
+try:
+    from langchain.chains.combine_documents import create_stuff_documents_chain
+except ImportError:
+    try:
+        # fallback for older LangChain versions
+        from langchain.chains import create_stuff_documents_chain
+    except ImportError:
+        raise ImportError(
+            "❌ Couldn't import create_stuff_documents_chain — please update LangChain using `pip install -U langchain`"
+        )
 from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import PromptTemplate
 
