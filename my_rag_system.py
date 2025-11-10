@@ -8,11 +8,12 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 
-# --- Custom Stuff Chain (بديل create_stuff_documents_chain و LLMChain) ---
+
+# --- Safe replacement for missing LangChain function ---
 def create_stuff_documents_chain(llm, prompt):
     """
-    Custom simplified version of create_stuff_documents_chain
-    that works even if LLMChain is unavailable.
+    Simplified version of LangChain's create_stuff_documents_chain
+    (compatible with old versions)
     """
     class SimpleDocumentChain:
         def __init__(self, llm, prompt):
@@ -20,18 +21,16 @@ def create_stuff_documents_chain(llm, prompt):
             self.prompt = prompt
 
         def combine_docs(self, docs, input=None):
-            # دمج النصوص في سياق واحد
+            # دمج النصوص من المستندات في نص واحد
             context = "\n\n".join([doc.page_content for doc in docs])
-            # إعداد النص النهائي المرسل للنموذج
             prompt_text = self.prompt.format(context=context, input=input)
-            # تمرير للنموذج مباشرة
             response = self.llm.invoke(prompt_text)
             return response.content if hasattr(response, "content") else str(response)
 
     return SimpleDocumentChain(llm, prompt)
 
 
-# --- Custom Retrieval Chain ---
+# --- Safe retrieval chain ---
 def create_retrieval_chain(retriever, document_chain):
     class SimpleRetrievalChain:
         def __init__(self, retriever, document_chain):
@@ -41,17 +40,20 @@ def create_retrieval_chain(retriever, document_chain):
         def invoke(self, inputs):
             query = inputs.get("input", "")
 
-            # دعم كل نسخ Chroma (قديمة وحديثة)
-            try:
+            # نحاول كل الطرق الممكنة لأي إصدار Chroma
+            retrieved_docs = None
+            if hasattr(self.retriever, "get_relevant_documents"):
                 retrieved_docs = self.retriever.get_relevant_documents(query)
-            except AttributeError:
+            elif hasattr(self.retriever, "similarity_search"):
                 retrieved_docs = self.retriever.similarity_search(query, k=4)
+            elif hasattr(self.retriever, "search"):
+                retrieved_docs = self.retriever.search(query)
+            else:
+                raise AttributeError("Retriever object has no document search method.")
 
+            # إنشاء الرد
             answer = self.document_chain.combine_docs(retrieved_docs, input=query)
-            return {
-                "answer": answer,
-                "context": retrieved_docs
-            }
+            return {"answer": answer, "context": retrieved_docs}
 
     return SimpleRetrievalChain(retriever, document_chain)
 
@@ -76,23 +78,17 @@ if uploaded_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
 
-        # تحميل وقراءة PDF
         loader = PyPDFLoader(tmp_path)
         docs = loader.load()
-
-        # عرض عدد الصفحات المحملة
         st.info(f"✅ Loaded {len(docs)} pages from {uploaded_file.name}")
 
-        # تقسيم النصوص إلى chunks
         splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
         splits = splitter.split_documents(docs)
 
-        # إنشاء قاعدة بيانات متجهية
         embedding = FastEmbedEmbeddings()
         vectorstore = Chroma.from_documents(splits, embedding=embedding)
         retriever = vectorstore.as_retriever()
 
-        # تهيئة نموذج Groq (LLaMA 3.3)
         llm = ChatOpenAI(
             model="llama-3.3-70b-versatile",
             openai_api_base="https://api.groq.com/openai/v1",
@@ -101,7 +97,6 @@ if uploaded_file:
             max_tokens=512
         )
 
-        # إعداد prompt
         prompt = PromptTemplate.from_template("""
         Use the following context to answer the question.
         If you don't know the answer, just say "I don't know."
@@ -112,13 +107,11 @@ if uploaded_file:
         Question: {input}
         """)
 
-        # إنشاء السلاسل اليدوية
         document_chain = create_stuff_documents_chain(llm, prompt)
         retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
         st.success("✅ PDF processed successfully!")
 
-        # واجهة السؤال والجواب
         question = st.text_input("💬 Ask a question about your PDF:")
         if st.button("Get Answer") and question:
             with st.spinner("🤔 Thinking..."):
@@ -126,12 +119,11 @@ if uploaded_file:
                 st.write("### 🤖 Answer:")
                 st.write(response["answer"])
 
-                # عرض المصادر (إن وجدت)
+                # عرض المصدر إن وجد
                 sources = response.get("context", None)
                 if sources:
                     st.write("### 📚 Sources used:")
                     for i, doc in enumerate(sources):
                         st.markdown(f"**Chunk {i+1}:** {doc.page_content[:300]}...")
-
 else:
     st.info("⬆️ Please upload a PDF file to begin.")
