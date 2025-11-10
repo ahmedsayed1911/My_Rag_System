@@ -9,19 +9,15 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 
 
-# --- Safe replacement for missing LangChain function ---
+# --- Safe document chain ---
 def create_stuff_documents_chain(llm, prompt):
-    """
-    Simplified version of LangChain's create_stuff_documents_chain
-    (compatible with old versions)
-    """
+    """Simple chain to combine docs + ask the LLM"""
     class SimpleDocumentChain:
         def __init__(self, llm, prompt):
             self.llm = llm
             self.prompt = prompt
 
         def combine_docs(self, docs, input=None):
-            # دمج النصوص من المستندات في نص واحد
             context = "\n\n".join([doc.page_content for doc in docs])
             prompt_text = self.prompt.format(context=context, input=input)
             response = self.llm.invoke(prompt_text)
@@ -30,32 +26,43 @@ def create_stuff_documents_chain(llm, prompt):
     return SimpleDocumentChain(llm, prompt)
 
 
-# --- Safe retrieval chain ---
-def create_retrieval_chain(retriever, document_chain):
+# --- Retrieval chain with fallback to vectorstore ---
+def create_retrieval_chain(retriever, vectorstore, document_chain):
     class SimpleRetrievalChain:
-        def __init__(self, retriever, document_chain):
+        def __init__(self, retriever, vectorstore, document_chain):
             self.retriever = retriever
+            self.vectorstore = vectorstore
             self.document_chain = document_chain
 
         def invoke(self, inputs):
             query = inputs.get("input", "")
 
-            # نحاول كل الطرق الممكنة لأي إصدار Chroma
+            # حاول كل الطرق
             retrieved_docs = None
-            if hasattr(self.retriever, "get_relevant_documents"):
-                retrieved_docs = self.retriever.get_relevant_documents(query)
-            elif hasattr(self.retriever, "similarity_search"):
-                retrieved_docs = self.retriever.similarity_search(query, k=4)
-            elif hasattr(self.retriever, "search"):
-                retrieved_docs = self.retriever.search(query)
-            else:
-                raise AttributeError("Retriever object has no document search method.")
+            try:
+                if hasattr(self.retriever, "get_relevant_documents"):
+                    retrieved_docs = self.retriever.get_relevant_documents(query)
+                elif hasattr(self.retriever, "similarity_search"):
+                    retrieved_docs = self.retriever.similarity_search(query, k=4)
+                elif hasattr(self.retriever, "search"):
+                    retrieved_docs = self.retriever.search(query)
+            except Exception:
+                pass
+
+            # لو retriever فشل، استخدم vectorstore نفسه
+            if not retrieved_docs:
+                if hasattr(self.vectorstore, "similarity_search"):
+                    retrieved_docs = self.vectorstore.similarity_search(query, k=4)
+                else:
+                    raise AttributeError(
+                        "Neither retriever nor vectorstore can search documents."
+                    )
 
             # إنشاء الرد
             answer = self.document_chain.combine_docs(retrieved_docs, input=query)
             return {"answer": answer, "context": retrieved_docs}
 
-    return SimpleRetrievalChain(retriever, document_chain)
+    return SimpleRetrievalChain(retriever, vectorstore, document_chain)
 
 
 # --- Streamlit UI setup ---
@@ -108,7 +115,7 @@ if uploaded_file:
         """)
 
         document_chain = create_stuff_documents_chain(llm, prompt)
-        retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        retrieval_chain = create_retrieval_chain(retriever, vectorstore, document_chain)
 
         st.success("✅ PDF processed successfully!")
 
