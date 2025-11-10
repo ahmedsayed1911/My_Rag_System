@@ -30,6 +30,7 @@ def create_stuff_documents_chain(llm, prompt):
 
     return SimpleDocumentChain(llm, prompt)
 
+
 # --- Custom Retrieval Chain ---
 def create_retrieval_chain(retriever, document_chain):
     class SimpleRetrievalChain:
@@ -39,7 +40,13 @@ def create_retrieval_chain(retriever, document_chain):
 
         def invoke(self, inputs):
             query = inputs.get("input", "")
-            retrieved_docs = self.retriever.get_relevant_documents(query)
+
+            # دعم كل نسخ Chroma (قديمة وحديثة)
+            try:
+                retrieved_docs = self.retriever.get_relevant_documents(query)
+            except AttributeError:
+                retrieved_docs = self.retriever.similarity_search(query, k=4)
+
             answer = self.document_chain.combine_docs(retrieved_docs, input=query)
             return {
                 "answer": answer,
@@ -72,6 +79,9 @@ if uploaded_file:
         # تحميل وقراءة PDF
         loader = PyPDFLoader(tmp_path)
         docs = loader.load()
+
+        # عرض عدد الصفحات المحملة
+        st.info(f"✅ Loaded {len(docs)} pages from {uploaded_file.name}")
 
         # تقسيم النصوص إلى chunks
         splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
