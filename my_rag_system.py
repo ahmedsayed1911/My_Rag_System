@@ -7,23 +7,9 @@ from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain  # ✅ النسخة الأصلية
 
-
-def create_stuff_documents_chain(llm, prompt):
-    class SimpleDocumentChain:
-        def __init__(self, llm, prompt):
-            self.llm = llm
-            self.prompt = prompt
-
-        def combine_docs(self, docs, input=None):
-            context = "\n\n".join([doc.page_content for doc in docs])
-            prompt_text = self.prompt.format(context=context, input=input)
-            response = self.llm.invoke(prompt_text)
-            return response.content if hasattr(response, "content") else str(response)
-
-    return SimpleDocumentChain(llm, prompt)
-
-
+# ----- Retrieval Chain -----
 def create_retrieval_chain(retriever, vectorstore, document_chain):
     class SimpleRetrievalChain:
         def __init__(self, retriever, vectorstore, document_chain):
@@ -35,6 +21,7 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
             query = inputs.get("input", "")
             retrieved_docs = None
 
+            # جرب الطرق المختلفة في Chroma
             try:
                 if hasattr(self.retriever, "get_relevant_documents"):
                     retrieved_docs = self.retriever.get_relevant_documents(query)
@@ -43,6 +30,7 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
             except Exception:
                 pass
 
+            # fallback لو retriever فشل
             if not retrieved_docs:
                 if hasattr(self.vectorstore, "similarity_search"):
                     retrieved_docs = self.vectorstore.similarity_search(query, k=4)
@@ -55,9 +43,10 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
     return SimpleRetrievalChain(retriever, vectorstore, document_chain)
 
 
-st.set_page_config(page_title="RAG System")
+# ----- Streamlit Setup -----
+st.set_page_config(page_title="RAG System (LangChain Original)")
 
-st.title("Ask Your PDF")
+st.title("Ask Your PDF 🧠 — LangChain Native Version")
 
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
@@ -67,7 +56,7 @@ if not api_key:
 uploaded_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if uploaded_file:
-    with st.spinner("Processing your PDF"):
+    with st.spinner("Processing your PDF..."):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
@@ -101,16 +90,17 @@ if uploaded_file:
         Question: {input}
         """)
 
+        # ✅ هنا بنستخدم النسخة الأصلية الجاهزة من LangChain
         document_chain = create_stuff_documents_chain(llm, prompt)
         retrieval_chain = create_retrieval_chain(retriever, vectorstore, document_chain)
 
-        st.success("PDF processed successfully.")
+        st.success("✅ PDF processed successfully.")
 
         question = st.text_input("Ask a question about your PDF:")
         if st.button("Get Answer") and question:
-            with st.spinner("Thinking..."):
+            with st.spinner("Thinking... 🤔"):
                 response = retrieval_chain.invoke({"input": question})
-                st.write("Answer:")
+                st.subheader("Answer:")
                 st.write(response["answer"])
 
 else:
