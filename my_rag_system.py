@@ -37,7 +37,6 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
             query = inputs.get("input", "")
             retrieved_docs = None
 
-            # جرب كل الطرق الممكنة لأي نسخة من Chroma
             try:
                 if hasattr(self.retriever, "get_relevant_documents"):
                     retrieved_docs = self.retriever.get_relevant_documents(query)
@@ -46,7 +45,6 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
             except Exception:
                 pass
 
-            # fallback لو retriever فشل
             if not retrieved_docs:
                 if hasattr(self.vectorstore, "similarity_search"):
                     retrieved_docs = self.vectorstore.similarity_search(query, k=4)
@@ -60,20 +58,19 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
 
 
 # ----- Streamlit Setup -----
-st.set_page_config(page_title="My RAG System")
+st.set_page_config(page_title="RAG System")
 
-st.title("My RAG System - Ask your PDF")
+st.title("Ask your PDF")
 
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
-    st.error("Please set your GROQ_API_KEY in Streamlit Secrets.")
+    st.error("Set your GROQ_API_KEY in Streamlit Secrets.")
     st.stop()
 
 uploaded_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if uploaded_file:
     with st.spinner("Processing your PDF..."):
-        # حفظ الملف مؤقتًا لقراءته
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
