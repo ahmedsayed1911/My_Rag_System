@@ -9,7 +9,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 
 
-# ----- Document Chain -----
 def create_stuff_documents_chain(llm, prompt):
     class SimpleDocumentChain:
         def __init__(self, llm, prompt):
@@ -25,7 +24,6 @@ def create_stuff_documents_chain(llm, prompt):
     return SimpleDocumentChain(llm, prompt)
 
 
-# ----- Retrieval Chain -----
 def create_retrieval_chain(retriever, vectorstore, document_chain):
     class SimpleRetrievalChain:
         def __init__(self, retriever, vectorstore, document_chain):
@@ -57,7 +55,6 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
     return SimpleRetrievalChain(retriever, vectorstore, document_chain)
 
 
-# ----- Streamlit Setup -----
 st.set_page_config(page_title="RAG System")
 
 st.title("Ask Your PDF")
@@ -70,7 +67,7 @@ if not api_key:
 uploaded_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if uploaded_file:
-    with st.spinner("Processing your PDF..."):
+    with st.spinner("Processing your PDF"):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
@@ -117,4 +114,4 @@ if uploaded_file:
                 st.write(response["answer"])
 
 else:
-    st.info("Please upload a PDF file to begin.")
+    st.info("Please upload your PDF file to begin.")
