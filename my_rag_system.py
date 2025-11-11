@@ -60,7 +60,7 @@ def create_retrieval_chain(retriever, vectorstore, document_chain):
 # ----- Streamlit Setup -----
 st.set_page_config(page_title="RAG System")
 
-st.title("Ask your PDF")
+st.title("Ask Your PDF")
 
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
