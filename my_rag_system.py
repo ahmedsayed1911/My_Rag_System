@@ -21,7 +21,7 @@ if not api_key:
 uploaded_file = st.file_uploader("Upload your PDF file", type="pdf")
 
 if uploaded_file:
-    with st.spinner("Processing your PDF..."):
+    with st.spinner("Processing your PDF"):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
