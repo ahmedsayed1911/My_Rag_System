@@ -8,7 +8,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain.schema.runnable import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough  
 
 # إعداد الصفحة
 st.set_page_config(page_title="RAG System")
@@ -56,7 +56,7 @@ if uploaded_file:
         # إعداد الـ prompt
         prompt = ChatPromptTemplate.from_template("""
         Use the following context to answer the question.
-        If you don't know, just say "I don't know."
+        If you don't know the answer, just say "I don't know."
 
         Context:
         {context}
